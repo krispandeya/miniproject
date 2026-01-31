@@ -21,12 +21,150 @@
             const [summary, setSummary] = React.useState('');
             const [isTranslating, setIsTranslating] = React.useState(false);
             const [translatedText, setTranslatedText] = React.useState('');
-            const [targetLanguage, setTargetLanguage] = React.useState('es');
+            const [targetLanguage, setTargetLanguage] = React.useState('en');
+            const [showTranslate, setShowTranslate] = React.useState(false);
             const [isAnalyzing, setIsAnalyzing] = React.useState(false);
             const [analysis, setAnalysis] = React.useState(null);
             const [keywords, setKeywords] = React.useState([]);
             const [isCopied, setIsCopied] = React.useState(false);
             const [loading, setLoading] = React.useState(true);
+            const [exportType, setExportType] = React.useState('pdf');
+
+            const languages = React.useMemo(() => ([
+                { name: 'Afrikaans', code: 'af' },
+                { name: 'Albanian', code: 'sq' },
+                { name: 'Amharic', code: 'am' },
+                { name: 'Arabic', code: 'ar' },
+                { name: 'Armenian', code: 'hy' },
+                { name: 'Assamese', code: 'as' },
+                { name: 'Aymara', code: 'ay' },
+                { name: 'Azerbaijani', code: 'az' },
+                { name: 'Bambara', code: 'bm' },
+                { name: 'Basque', code: 'eu' },
+                { name: 'Belarusian', code: 'be' },
+                { name: 'Bengali', code: 'bn' },
+                { name: 'Bhojpuri', code: 'bho' },
+                { name: 'Bosnian', code: 'bs' },
+                { name: 'Bulgarian', code: 'bg' },
+                { name: 'Catalan', code: 'ca' },
+                { name: 'Cebuano', code: 'ceb' },
+                { name: 'Chichewa', code: 'ny' },
+                { name: 'Chinese (Simplified)', code: 'zh-CN' },
+                { name: 'Chinese (Traditional)', code: 'zh-TW' },
+                { name: 'Corsican', code: 'co' },
+                { name: 'Croatian', code: 'hr' },
+                { name: 'Czech', code: 'cs' },
+                { name: 'Danish', code: 'da' },
+                { name: 'Dhivehi', code: 'dv' },
+                { name: 'Dogri', code: 'doi' },
+                { name: 'Dutch', code: 'nl' },
+                { name: 'English', code: 'en' },
+                { name: 'Esperanto', code: 'eo' },
+                { name: 'Estonian', code: 'et' },
+                { name: 'Ewe', code: 'ee' },
+                { name: 'Filipino', code: 'tl' },
+                { name: 'Finnish', code: 'fi' },
+                { name: 'French', code: 'fr' },
+                { name: 'Frisian', code: 'fy' },
+                { name: 'Galician', code: 'gl' },
+                { name: 'Georgian', code: 'ka' },
+                { name: 'German', code: 'de' },
+                { name: 'Greek', code: 'el' },
+                { name: 'Guarani', code: 'gn' },
+                { name: 'Gujarati', code: 'gu' },
+                { name: 'Haitian Creole', code: 'ht' },
+                { name: 'Hausa', code: 'ha' },
+                { name: 'Hawaiian', code: 'haw' },
+                { name: 'Hebrew', code: 'iw' },
+                { name: 'Hindi', code: 'hi' },
+                { name: 'Hmong', code: 'hmn' },
+                { name: 'Hungarian', code: 'hu' },
+                { name: 'Icelandic', code: 'is' },
+                { name: 'Igbo', code: 'ig' },
+                { name: 'Ilocano', code: 'ilo' },
+                { name: 'Indonesian', code: 'id' },
+                { name: 'Irish', code: 'ga' },
+                { name: 'Italian', code: 'it' },
+                { name: 'Japanese', code: 'ja' },
+                { name: 'Javanese', code: 'jw' },
+                { name: 'Kannada', code: 'kn' },
+                { name: 'Kazakh', code: 'kk' },
+                { name: 'Khmer', code: 'km' },
+                { name: 'Kinyarwanda', code: 'rw' },
+                { name: 'Konkani', code: 'gom' },
+                { name: 'Korean', code: 'ko' },
+                { name: 'Krio', code: 'kri' },
+                { name: 'Kurdish (Kurmanji)', code: 'ku' },
+                { name: 'Kurdish (Sorani)', code: 'ckb' },
+                { name: 'Kyrgyz', code: 'ky' },
+                { name: 'Lao', code: 'lo' },
+                { name: 'Latin', code: 'la' },
+                { name: 'Latvian', code: 'lv' },
+                { name: 'Lingala', code: 'ln' },
+                { name: 'Lithuanian', code: 'lt' },
+                { name: 'Luganda', code: 'lg' },
+                { name: 'Luxembourgish', code: 'lb' },
+                { name: 'Macedonian', code: 'mk' },
+                { name: 'Maithili', code: 'mai' },
+                { name: 'Malagasy', code: 'mg' },
+                { name: 'Malay', code: 'ms' },
+                { name: 'Malayalam', code: 'ml' },
+                { name: 'Maltese', code: 'mt' },
+                { name: 'Maori', code: 'mi' },
+                { name: 'Marathi', code: 'mr' },
+                { name: 'Meiteilon (Manipuri)', code: 'mni-Mtei' },
+                { name: 'Mizo', code: 'lus' },
+                { name: 'Mongolian', code: 'mn' },
+                { name: 'Myanmar', code: 'my' },
+                { name: 'Nepali', code: 'ne' },
+                { name: 'Norwegian', code: 'no' },
+                { name: 'Odia (Oriya)', code: 'or' },
+                { name: 'Oromo', code: 'om' },
+                { name: 'Pashto', code: 'ps' },
+                { name: 'Persian', code: 'fa' },
+                { name: 'Polish', code: 'pl' },
+                { name: 'Portuguese', code: 'pt' },
+                { name: 'Punjabi', code: 'pa' },
+                { name: 'Quechua', code: 'qu' },
+                { name: 'Romanian', code: 'ro' },
+                { name: 'Russian', code: 'ru' },
+                { name: 'Samoan', code: 'sm' },
+                { name: 'Sanskrit', code: 'sa' },
+                { name: 'Scots Gaelic', code: 'gd' },
+                { name: 'Sepedi', code: 'nso' },
+                { name: 'Serbian', code: 'sr' },
+                { name: 'Sesotho', code: 'st' },
+                { name: 'Shona', code: 'sn' },
+                { name: 'Sindhi', code: 'sd' },
+                { name: 'Sinhala', code: 'si' },
+                { name: 'Slovak', code: 'sk' },
+                { name: 'Slovenian', code: 'sl' },
+                { name: 'Somali', code: 'so' },
+                { name: 'Spanish', code: 'es' },
+                { name: 'Sundanese', code: 'su' },
+                { name: 'Swahili', code: 'sw' },
+                { name: 'Swedish', code: 'sv' },
+                { name: 'Tajik', code: 'tg' },
+                { name: 'Tamil', code: 'ta' },
+                { name: 'Tatar', code: 'tt' },
+                { name: 'Telugu', code: 'te' },
+                { name: 'Thai', code: 'th' },
+                { name: 'Tigrinya', code: 'ti' },
+                { name: 'Tsonga', code: 'ts' },
+                { name: 'Turkish', code: 'tr' },
+                { name: 'Turkmen', code: 'tk' },
+                { name: 'Twi', code: 'ak' },
+                { name: 'Ukrainian', code: 'uk' },
+                { name: 'Urdu', code: 'ur' },
+                { name: 'Uyghur', code: 'ug' },
+                { name: 'Uzbek', code: 'uz' },
+                { name: 'Vietnamese', code: 'vi' },
+                { name: 'Welsh', code: 'cy' },
+                { name: 'Xhosa', code: 'xh' },
+                { name: 'Yiddish', code: 'yi' },
+                { name: 'Yoruba', code: 'yo' },
+                { name: 'Zulu', code: 'zu' }
+            ]), []);
 
             // Load extracted text on mount
             React.useEffect(() => {
@@ -78,7 +216,7 @@
                 }
             };
 
-            const handleTranslate = async () => {
+            const handleTranslate = async (langOverride) => {
                 setIsTranslating(true);
                 try {
                     const response = await fetch('/api/translate', {
@@ -86,7 +224,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             text: extractedText,
-                            target_language: targetLanguage 
+                            target_language: langOverride || targetLanguage 
                         })
                     });
 
@@ -144,30 +282,34 @@
                 });
             };
 
-            const handleExportPDF = async () => {
+            const handleExport = async () => {
                 try {
-                    const response = await fetch('/api/export_pdf', {
+                    const response = await fetch('/api/export_file', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ text: extractedText })
+                        body: JSON.stringify({ text: extractedText, file_type: exportType })
                     });
 
                     if (response.ok) {
                         const data = await response.json();
-                        const binaryString = atob(data.pdf_base64);
+                        if (data.status !== 'success') {
+                            alert(data.message || 'Failed to export');
+                            return;
+                        }
+                        const binaryString = atob(data.file_base64);
                         const bytes = new Uint8Array(binaryString.length);
                         for (let i = 0; i < binaryString.length; i++) {
                             bytes[i] = binaryString.charCodeAt(i);
                         }
-                        const blob = new Blob([bytes], { type: 'application/pdf' });
+                        const blob = new Blob([bytes], { type: data.mime || 'application/octet-stream' });
                         const link = document.createElement('a');
                         link.href = URL.createObjectURL(blob);
-                        link.download = `scan_${Date.now()}.pdf`;
+                        link.download = data.filename || `scan_${Date.now()}`;
                         link.click();
                     }
                 } catch (error) {
                     console.error('PDF export failed:', error);
-                    alert('Failed to export PDF');
+                    alert('Failed to export');
                 }
             };
 
@@ -268,12 +410,12 @@
                                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🔑</div>
                                     Keywords
                                 </button>
-                                <button onClick={handleExportPDF} style={{ gridColumn: 'span 1' }}>
+                                <button onClick={handleExport} style={{ gridColumn: 'span 1' }}>
                                     <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📥</div>
-                                    Export PDF
+                                    Export
                                 </button>
                                 <button 
-                                    onClick={handleTranslate} 
+                                    onClick={() => setShowTranslate(true)} 
                                     disabled={isTranslating}
                                     style={{ gridColumn: 'span 2' }}
                                 >
@@ -289,25 +431,42 @@
                                 </div>
                             )}
 
-                            {translatedText && (
+                            {(showTranslate || translatedText) && (
                                 <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(42, 205, 250, 0.1)', borderRadius: '12px' }}>
                                     <h3>🌍 Translated Text</h3>
                                     <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>{translatedText}</p>
                                     <select 
                                         value={targetLanguage} 
-                                        onChange={(e) => setTargetLanguage(e.target.value)}
+                                        onChange={(e) => {
+                                            const next = e.target.value;
+                                            setTargetLanguage(next);
+                                            handleTranslate(next);
+                                        }}
                                         style={{ marginTop: '1rem', padding: '0.5rem', borderRadius: '8px', background: '#0F172A', color: 'white' }}
                                     >
-                                        <option value="es">Spanish</option>
-                                        <option value="fr">French</option>
-                                        <option value="de">German</option>
-                                        <option value="it">Italian</option>
-                                        <option value="pt">Portuguese</option>
-                                        <option value="ja">Japanese</option>
-                                        <option value="zh">Chinese</option>
+                                        {languages.map((lang) => (
+                                            <option key={lang.code} value={lang.code}>{lang.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                             )}
+
+                            <div style={{ marginTop: '1rem' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Export format</label>
+                                <select
+                                    value={exportType}
+                                    onChange={(e) => setExportType(e.target.value)}
+                                    style={{ padding: '0.5rem', borderRadius: '8px', background: '#0F172A', color: 'white' }}
+                                >
+                                    <option value="pdf">PDF</option>
+                                    <option value="docx">DOCX</option>
+                                    <option value="pptx">PPTX</option>
+                                    <option value="xlsx">XLSX</option>
+                                    <option value="csv">CSV</option>
+                                    <option value="html">HTML</option>
+                                    <option value="txt">TXT</option>
+                                </select>
+                            </div>
 
                             {/* AI Summarization */}
                             {isSummarized && (

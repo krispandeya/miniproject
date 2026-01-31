@@ -1,13 +1,15 @@
 from flask import Flask, Response, request, jsonify, send_from_directory
+from text import extract_text_from_image
+import time
+import numpy
 import base64
 import os
 import re
-import time
 
 import cv2 as cv
 import numpy
-from fpdf import FPDF
 from deep_translator import GoogleTranslator
+from download import build_export
 
 try:
     from suggestion import analyze_quality, get_image
@@ -108,6 +110,8 @@ def extract_keywords(text, top_k=10):
     return [k for k, _ in sorted(counts.items(), key=lambda x: x[1], reverse=True)[:top_k]]
 
 
+
+
 def generate_frames():
     idx = 0
     while True:
@@ -191,6 +195,38 @@ def check_quality():
     return jsonify({"status": "ok", "is_good": ok, "suggestions": tips})
 
 
+@app.route("/upload_image", methods=["POST"])
+def upload_image():
+    if "file" not in request.files:
+        return jsonify({"status": "error", "message": "No file uploaded."}), 400
+
+    file = request.files["file"]
+    if not file or file.filename == "":
+        return jsonify({"status": "error", "message": "Invalid file."}), 400
+
+    try:
+        data = file.read()
+        frame = cv.imdecode(numpy.frombuffer(data, numpy.uint8), cv.IMREAD_COLOR)
+        if frame is None:
+            return jsonify({"status": "error"}), 400
+
+        user_id = request.form.get("user_id", "default_user")
+        images_dir = os.path.join(os.path.dirname(__file__), "images", "saved")
+        os.makedirs(images_dir, exist_ok=True)
+        
+        filename = f"upload_{int(time.time())}.jpg"
+        filepath = os.path.join(images_dir, filename)
+        cv.imwrite(filepath, frame)
+
+        text, conf = extract_text_from_image(filepath)
+        STORE[user_id] = text
+        
+        return jsonify({"status": "success", "text": text})
+    except Exception as e:
+        print(f"Upload error: {e}")
+        return jsonify({"status": "error"}), 500
+
+
 @app.route("/api/get_extracted_text", methods=["GET"])
 def get_extracted_text():
     user_id = request.args.get("user_id", "default_user")
@@ -233,19 +269,26 @@ def api_get_keywords():
     return jsonify({"keywords": extract_keywords(text)})
 
 
-@app.route("/api/export_pdf", methods=["POST"])
-def api_export_pdf():
-    text = (request.get_json(silent=True) or {}).get("text", "").strip()
+@app.route("/api/export_file", methods=["POST"])
+def api_export_file():
+    payload = request.get_json(silent=True) or {}
+    text = (payload.get("text") or "").strip()
+    file_type = payload.get("file_type") or "pdf"
     if not text:
         return jsonify({"status": "error", "message": "No text provided."}), 400
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", size=12)
-    for line in text.splitlines() or [text]:
-        pdf.multi_cell(0, 8, line)
-    pdf_bytes = pdf.output(dest="S").encode("latin-1")
-    return jsonify({"pdf_base64": base64.b64encode(pdf_bytes).decode("utf-8")})
+
+    filename, mime, data = build_export(text, file_type)
+    if not data:
+        return jsonify({"status": "error", "message": "Unsupported file type."}), 400
+
+    return jsonify({
+        "status": "success",
+        "filename": filename,
+        "mime": mime,
+        "file_base64": base64.b64encode(data).decode("utf-8")
+    })
+
+
 
 
 if __name__ == "__main__":

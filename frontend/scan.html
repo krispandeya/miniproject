@@ -26,6 +26,7 @@
             const [suggestions, setSuggestions] = React.useState([]);
             const [extractedText, setExtractedText] = React.useState('');
             const [cameraError, setCameraError] = React.useState('');
+            const [isUploading, setIsUploading] = React.useState(false);
 
             const webcamRef = React.useRef(null);
             const videoRef = React.useRef(null);
@@ -44,6 +45,13 @@
             React.useEffect(() => {
                 return () => stopScanning();
             }, []);
+
+            React.useEffect(() => {
+                if (scanStatus === 'success') {
+                    sessionStorage.setItem('scannedText', extractedText || '');
+                    window.location.href = 'results.html';
+                }
+            }, [scanStatus, extractedText]);
 
             const startNativeCamera = async () => {
                 if (!isSecureContext) {
@@ -126,7 +134,9 @@
                         if (result.status === 'success') {
                             setExtractedText(result.text);
                             setScanStatus('success');
+                            sessionStorage.setItem('scannedText', result.text || '');
                             stopScanning();
+                            window.location.href = 'results.html';
                         } else if (result.status === 'analyzing') {
                             setSuggestions(result.suggestions || []);
                         }
@@ -154,6 +164,42 @@
             const handleContinueToResults = () => {
                 sessionStorage.setItem('scannedText', extractedText);
                 window.location.href = 'results.html';
+            };
+
+            const handleFileChange = async (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
+                setIsUploading(true);
+                setSuggestions([]);
+                setScanStatus('analyzing');
+
+                const form = new FormData();
+                form.append('file', file);
+                form.append('user_id', 'default_user');
+
+                try {
+                    const response = await fetch('/upload_image', {
+                        method: 'POST',
+                        body: form
+                    });
+
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        setExtractedText(result.text || '');
+                        setScanStatus('success');
+                        sessionStorage.setItem('scannedText', result.text || '');
+                        window.location.href = 'results.html';
+                    } else if (result.status === 'analyzing') {
+                        setSuggestions(result.suggestions || []);
+                    } else {
+                        setSuggestions([result.message || 'Upload failed.']);
+                    }
+                } catch (err) {
+                    setSuggestions(['Upload failed. Try again.']);
+                } finally {
+                    setIsUploading(false);
+                    e.target.value = '';
+                }
             };
 
 
@@ -249,6 +295,18 @@
                                 />
                             </div>
                         )}
+                    </div>
+
+                    <div style={{ textAlign: 'center', marginTop: '20px' }}>
+                        <label className="scan-button" style={{ display: 'inline-block' }}>
+                            {isUploading ? 'Uploading...' : '📁 Upload Image'}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleFileChange}
+                                style={{ display: 'none' }}
+                            />
+                        </label>
                     </div>
                 </div>
             );
