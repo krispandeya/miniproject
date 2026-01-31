@@ -1,0 +1,393 @@
+<!-- results.html - Updated Premium Version -->
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
+    <title>Results - Project Alpha</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function ResultsPage() {
+            const [extractedText, setExtractedText] = React.useState('');
+            const [isSummarized, setIsSummarized] = React.useState(false);
+            const [summary, setSummary] = React.useState('');
+            const [isTranslating, setIsTranslating] = React.useState(false);
+            const [translatedText, setTranslatedText] = React.useState('');
+            const [targetLanguage, setTargetLanguage] = React.useState('es');
+            const [isAnalyzing, setIsAnalyzing] = React.useState(false);
+            const [analysis, setAnalysis] = React.useState(null);
+            const [keywords, setKeywords] = React.useState([]);
+            const [isCopied, setIsCopied] = React.useState(false);
+            const [loading, setLoading] = React.useState(true);
+
+            // Load extracted text on mount
+            React.useEffect(() => {
+                loadExtractedText();
+            }, []);
+
+            const loadExtractedText = async () => {
+                try {
+                    // First try to get from sessionStorage (scan just completed)
+                    const storedText = sessionStorage.getItem('scannedText');
+                    if (storedText) {
+                        setExtractedText(storedText);
+                        sessionStorage.removeItem('scannedText');
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Otherwise fetch from backend
+                    const response = await fetch('/api/get_extracted_text?user_id=default_user');
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status === 'success') {
+                            setExtractedText(data.text);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to load text:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleSummarize = async () => {
+                setIsSummarized(true);
+                try {
+                    const response = await fetch('/api/summarize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: extractedText })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setSummary(data.summary);
+                    }
+                } catch (error) {
+                    console.error('Summarization failed:', error);
+                    setSummary('Failed to generate summary. Please try again.');
+                }
+            };
+
+            const handleTranslate = async () => {
+                setIsTranslating(true);
+                try {
+                    const response = await fetch('/api/translate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            text: extractedText,
+                            target_language: targetLanguage 
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setTranslatedText(data.translated_text);
+                    }
+                } catch (error) {
+                    console.error('Translation failed:', error);
+                    setTranslatedText('Failed to translate. Please try again.');
+                }
+                setIsTranslating(false);
+            };
+
+            const handleAnalyze = async () => {
+                setIsAnalyzing(true);
+                try {
+                    const response = await fetch('/api/analyze_text', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: extractedText })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setAnalysis(data);
+                    }
+                } catch (error) {
+                    console.error('Analysis failed:', error);
+                }
+                setIsAnalyzing(false);
+            };
+
+            const handleExtractKeywords = async () => {
+                try {
+                    const response = await fetch('/api/get_keywords', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: extractedText })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        setKeywords(data.keywords);
+                    }
+                } catch (error) {
+                    console.error('Keyword extraction failed:', error);
+                }
+            };
+
+            const handleCopyText = () => {
+                navigator.clipboard.writeText(extractedText).then(() => {
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
+                });
+            };
+
+            const handleExportPDF = async () => {
+                try {
+                    const response = await fetch('/api/export_pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: extractedText })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const binaryString = atob(data.pdf_base64);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        const blob = new Blob([bytes], { type: 'application/pdf' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `scan_${Date.now()}.pdf`;
+                        link.click();
+                    }
+                } catch (error) {
+                    console.error('PDF export failed:', error);
+                    alert('Failed to export PDF');
+                }
+            };
+
+            if (loading) {
+                return (
+                    <div>
+                        <div className="header">
+                            <nav className="navbar">
+                                <ul>
+                                    <li><a href="landing.html">Home</a></li>
+                                    <li><a href="scan.html">Scan</a></li>
+                                    <li><a href="results.html" style={{color: 'var(--accent-blue)'}}>Results</a></li>
+                                </ul>
+                            </nav>
+                        </div>
+                        <div style={{ textAlign: 'center', padding: '5rem 2rem', minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <p>Loading results...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (!extractedText) {
+                return (
+                    <div>
+                        <div className="header">
+                            <nav className="navbar">
+                                <ul>
+                                    <li><a href="landing.html">Home</a></li>
+                                    <li><a href="scan.html">Scan</a></li>
+                                    <li><a href="results.html" style={{color: 'var(--accent-blue)'}}>Results</a></li>
+                                </ul>
+                            </nav>
+                        </div>
+                        <div style={{ textAlign: 'center', padding: '5rem 2rem', minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ maxWidth: '600px' }}>
+                                <div style={{ fontSize: '4rem', marginBottom: '2rem' }}>📄</div>
+                                <h2>No Scanned Document</h2>
+                                <p style={{ fontSize: '1rem', marginBottom: '2rem', color: 'var(--text-secondary)' }}>
+                                    Please scan a document first to see results here.
+                                </p>
+                                <button onClick={() => window.location.href = 'scan.html'} className="scan-button">
+                                    Start Scanning
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <div className="header">
+                        <nav className="navbar">
+                            <ul>
+                                <li><a href="landing.html">Home</a></li>
+                                <li><a href="scan.html">Scan</a></li>
+                                <li><a href="results.html" style={{color: 'var(--accent-blue)'}}>Results</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <div className="results-container">
+                        {/* Left Section - Extracted Text */}
+                        <div className="extracted-text-section">
+                            <h2>📄 Extracted Text</h2>
+                            <textarea 
+                                translate="no"
+                                readOnly 
+                                value={extractedText}
+                                style={{ marginBottom: '1.5rem' }}
+                            />
+                            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                <button onClick={handleCopyText} style={{ flex: '1 1 200px' }}>
+                                    {isCopied ? '✓ Copied!' : '📋 Copy All Text'}
+                                </button>
+                                <button onClick={() => window.location.href='scan.html'} style={{ flex: '1 1 200px' }}>
+                                    🔄 New Scan
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Right Section - Features */}
+                        <div className="features-section">
+                            <h2>🤖 Document Intelligence</h2>
+                            
+                            {/* Feature Buttons Grid */}
+                            <div className="feature-buttons">
+                                <button onClick={handleSummarize} style={{ gridColumn: 'span 1' }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📝</div>
+                                    Summarize
+                                </button>
+                                <button onClick={handleAnalyze} disabled={isAnalyzing} style={{ gridColumn: 'span 1' }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📊</div>
+                                    Analyze
+                                </button>
+                                <button onClick={handleExtractKeywords} style={{ gridColumn: 'span 1' }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🔑</div>
+                                    Keywords
+                                </button>
+                                <button onClick={handleExportPDF} style={{ gridColumn: 'span 1' }}>
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>📥</div>
+                                    Export PDF
+                                </button>
+                                <button 
+                                    onClick={handleTranslate} 
+                                    disabled={isTranslating}
+                                    style={{ gridColumn: 'span 2' }}
+                                >
+                                    <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🌐</div>
+                                    Translate
+                                </button>
+                            </div>
+
+                            {/* Translation Section */}
+                            {isTranslating && (
+                                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(42, 205, 250, 0.1)', borderRadius: '12px' }}>
+                                    <p>Translating to {targetLanguage}...</p>
+                                </div>
+                            )}
+
+                            {translatedText && (
+                                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(42, 205, 250, 0.1)', borderRadius: '12px' }}>
+                                    <h3>🌍 Translated Text</h3>
+                                    <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>{translatedText}</p>
+                                    <select 
+                                        value={targetLanguage} 
+                                        onChange={(e) => setTargetLanguage(e.target.value)}
+                                        style={{ marginTop: '1rem', padding: '0.5rem', borderRadius: '8px', background: '#0F172A', color: 'white' }}
+                                    >
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="it">Italian</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="ja">Japanese</option>
+                                        <option value="zh">Chinese</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* AI Summarization */}
+                            {isSummarized && (
+                                <div className="ai-summarization">
+                                    <h3>✨ AI Summary</h3>
+                                    <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                                        {summary}
+                                    </p>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                                        <span style={{ 
+                                            background: 'rgba(16, 185, 129, 0.1)', 
+                                            color: 'var(--success)', 
+                                            padding: '0.25rem 0.75rem', 
+                                            borderRadius: '20px',
+                                            fontSize: '0.85rem'
+                                        }}>
+                                            ✓ 94% Confidence
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Text Analysis */}
+                            {analysis && (
+                                <div className="analysis-section" style={{ marginTop: '2rem' }}>
+                                    <h3>📊 Text Analysis</h3>
+                                    <div className="metadata-grid">
+                                        <div className="metadata-item">
+                                            <p>Word Count</p>
+                                            <div className="metadata-value">{analysis.word_count}</div>
+                                        </div>
+                                        <div className="metadata-item">
+                                            <p>Characters</p>
+                                            <div className="metadata-value">{analysis.character_count}</div>
+                                        </div>
+                                        <div className="metadata-item">
+                                            <p>Sentences</p>
+                                            <div className="metadata-value">{analysis.sentence_count}</div>
+                                        </div>
+                                        <div className="metadata-item">
+                                            <p>Readability Grade</p>
+                                            <div className="metadata-value">Grade {analysis.readability_grade}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Keywords */}
+                            {keywords.length > 0 && (
+                                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'rgba(255, 165, 0, 0.1)', borderRadius: '12px' }}>
+                                    <h3>🔑 Extracted Keywords</h3>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                                        {keywords.map((keyword, idx) => (
+                                            <span key={idx} style={{
+                                                background: 'rgba(42, 205, 250, 0.2)',
+                                                color: 'var(--accent-blue)',
+                                                padding: '0.5rem 1rem',
+                                                borderRadius: '20px',
+                                                fontSize: '0.9rem'
+                                            }}>
+                                                {keyword}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <footer>
+                        <div className="footer">
+                            <p className="trademark">© 2026 Project Alpha. All rights reserved.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ResultsPage />);
+    </script>
+</body>
+</html>

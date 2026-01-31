@@ -1,0 +1,81 @@
+<!-- landing.html - Updated Hero Section -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Alpha - Premium Document Intelligence</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function LandingPage() {
+            return (
+                <div>
+                    <div className="header">
+                        <nav className="navbar">
+                            <ul>
+                                <li><a href="landing.html">Home</a></li>
+                                <li><a href="scan.html">Scan</a></li>
+                                <li><a href="results.html">Results</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <div className="hero">
+                        <div>
+                            <h1 className="head-text">Project Alpha</h1>
+                            <p className="description">
+                                Professional-grade document intelligence platform. 
+                                Transform physical documents into actionable digital insights 
+                                with cutting-edge AI technology.
+                            </p>
+                            <button 
+                                className="scan-button"
+                                onClick={() => window.location.href='scan.html'}
+                            >
+                                Start Scan
+                                <span style={{marginLeft: '10px'}}>→</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="container">
+                        <div className="feature-cards">
+                            <div className="feature-card">
+                                <div style={{width: '48px', height: '48px', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-light))', borderRadius: '12px', marginBottom: '1.5rem'}}></div>
+                                <h3>Intelligent Processing</h3>
+                                <p>Real-time document scanning with 99.8% accuracy. Advanced OCR powered by deep learning algorithms.</p>
+                            </div>
+                            <div className="feature-card">
+                                <div style={{width: '48px', height: '48px', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-light))', borderRadius: '12px', marginBottom: '1.5rem'}}></div>
+                                <h3>Enterprise Security</h3>
+                                <p>End-to-end encryption with zero-knowledge architecture. SOC 2 Type II certified infrastructure.</p>
+                            </div>
+                            <div className="feature-card">
+                                <div style={{width: '48px', height: '48px', background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-light))', borderRadius: '12px', marginBottom: '1.5rem'}}></div>
+                                <h3>AI-Powered Insights</h3>
+                                <p>Advanced natural language processing for summarization, translation, and sentiment analysis.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer>
+                        <div className="footer">
+                            <p className="trademark">© 2026 Project Alpha. All rights reserved.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<LandingPage />);
+    </script>
+</body>
+</html>

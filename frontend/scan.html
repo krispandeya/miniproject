@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Document - Project Alpha</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react-webcam@7.1.1/dist/react-webcam.js"></script>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Access Webcam from the UMD bundle and provide a flag
+        const Webcam = window["react-webcam"]?.default;
+        const hasWebcam = !!Webcam;
+
+        function ScanPage() {
+            const [isScanning, setIsScanning] = React.useState(false);
+            const [scanStatus, setScanStatus] = React.useState('ready');
+            const [suggestions, setSuggestions] = React.useState([]);
+            const [extractedText, setExtractedText] = React.useState('');
+            const [cameraError, setCameraError] = React.useState('');
+
+            const webcamRef = React.useRef(null);
+            const videoRef = React.useRef(null);
+            const nativeStreamRef = React.useRef(null);
+            const intervalRef = React.useRef(null);
+            const analysisIntervalRef = React.useRef(null);
+            const lastFrameRef = React.useRef(null);
+
+            const isSecureContext = React.useMemo(() => {
+                const host = window.location.hostname;
+                const local = host === 'localhost' || host === '127.0.0.1';
+                return window.isSecureContext || local;
+            }, []);
+
+            // Cleanup on unmount
+            React.useEffect(() => {
+                return () => stopScanning();
+            }, []);
+
+            const startNativeCamera = async () => {
+                if (!isSecureContext) {
+                    setScanStatus('error');
+                    setCameraError('Camera requires HTTPS on mobile. Open the site using https or localhost.');
+                    return;
+                }
+                try {
+                    const s = await navigator.mediaDevices.getUserMedia({ video: videoConstraints });
+                    if (videoRef.current) videoRef.current.srcObject = s;
+                    nativeStreamRef.current = s;
+                    setScanStatus('analyzing');
+                    setCameraError('');
+                } catch (err) {
+                    console.error('Native camera error', err);
+                    setScanStatus('error');
+                    setSuggestions([
+                        'Camera access denied or not available.',
+                        'Use HTTPS (or localhost) to allow camera access on mobile.',
+                        'Check browser permissions and reload the page.'
+                    ]);
+                    setCameraError('Camera access denied or unavailable.');
+                }
+            };
+
+            const stopNativeCamera = () => {
+                if (nativeStreamRef.current) {
+                    nativeStreamRef.current.getTracks().forEach(t => t.stop());
+                    nativeStreamRef.current = null;
+                }
+                if (videoRef.current) videoRef.current.srcObject = null;
+            };
+
+            const takeScreenshot = () => {
+                if (hasWebcam) {
+                    if (!webcamRef.current || !webcamRef.current.getScreenshot) return null;
+                    return webcamRef.current.getScreenshot();
+                } else {
+                    const v = videoRef.current;
+                    if (!v || !v.videoWidth) return null;
+                    const c = document.createElement('canvas');
+                    c.width = v.videoWidth || videoConstraints.width;
+                    c.height = v.videoHeight || videoConstraints.height;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(v, 0, 0, c.width, c.height);
+                    return c.toDataURL('image/jpeg');
+                }
+            };
+
+            const startScanning = () => {
+                setIsScanning(true);
+                setScanStatus('analyzing');
+                setSuggestions([]);
+                setCameraError('');
+
+                if (!isSecureContext) {
+                    setScanStatus('error');
+                    setCameraError('Camera requires HTTPS on mobile. Open the site using https or localhost.');
+                    return;
+                }
+
+                if (!hasWebcam) startNativeCamera();
+
+                // Auto-capture loop
+                analysisIntervalRef.current = setInterval(async () => {
+                    const imageSrc = takeScreenshot();
+                    if (!imageSrc) return;
+
+                    lastFrameRef.current = imageSrc;
+
+                    try {
+                        const response = await fetch('/analyze_and_capture', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ image: imageSrc, user_id: 'default_user' })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.status === 'success') {
+                            setExtractedText(result.text);
+                            setScanStatus('success');
+                            stopScanning();
+                        } else if (result.status === 'analyzing') {
+                            setSuggestions(result.suggestions || []);
+                        }
+                    } catch (error) {
+                        console.error('Analysis error:', error);
+                    }
+                }, 1000);
+            };
+
+            const stopScanning = () => {
+                setIsScanning(false);
+                if (intervalRef.current) clearInterval(intervalRef.current);
+                if (analysisIntervalRef.current) clearInterval(analysisIntervalRef.current);
+                stopNativeCamera();
+                if (intervalRef.current) clearInterval(intervalRef.current);
+                if (analysisIntervalRef.current) clearInterval(analysisIntervalRef.current);
+            };
+
+            const handleNewScan = () => {
+                setExtractedText('');
+                setScanStatus('ready');
+                setSuggestions([]);
+            };
+
+            const handleContinueToResults = () => {
+                sessionStorage.setItem('scannedText', extractedText);
+                window.location.href = 'results.html';
+            };
+
+
+            const videoConstraints = {
+                width: 1280,
+                height: 720,
+                facingMode: { ideal: "environment" }
+            };
+
+            return (
+                <div>
+                    <div className="header">
+                        <nav className="navbar">
+                            <ul>
+                                <li><a href="landing.html">Home</a></li>
+                                <li><a href="scan.html" style={{ color: 'var(--accent-blue)' }}>Scan</a></li>
+                                <li><a href="results.html">Results</a></li>
+                            </ul>
+                        </nav>
+                    </div>
+
+                    <div className="scan-container">
+                        <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>Scan Your Document</h1>
+
+                        <div className="camera-feed-section">
+                            {/* react-webcam Component or fallback message */}
+                            {hasWebcam ? (
+                                <Webcam
+                                    style={{
+                                        width: '100%',
+                                        borderRadius: '15px',
+                                        display: scanStatus === 'success' ? 'none' : 'block'
+                                    }}
+                                    audio={false}
+                                    ref={webcamRef}
+                                    screenshotFormat="image/jpeg"
+                                    videoConstraints={videoConstraints}
+                                    onUserMedia={() => { setScanStatus('analyzing'); setCameraError(''); }}
+                                    onUserMediaError={() => {
+                                        setScanStatus('error');
+                                        setCameraError('Camera access denied or not available.');
+                                        setSuggestions([
+                                            'Allow camera permissions in the browser settings.',
+                                            'Use HTTPS (or localhost) to enable camera on mobile.'
+                                        ]);
+                                    }}
+                                />
+                            ) : (
+                                <div>
+                                    <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', borderRadius: '15px', display: scanStatus === 'success' ? 'none' : 'block' }} />
+                                    {scanStatus === 'error' && (
+                                        <p style={{ color: '#FFB347', textAlign: 'center', marginTop: '1rem' }}>
+                                            ⚠️ Camera access denied or not available. Try another browser or check permissions.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            <div className="condition-status">
+                                <h3>Scan Status</h3>
+                                {!isSecureContext && (
+                                    <p style={{ color: '#FFB347' }}>⚠️ Camera requires HTTPS on mobile devices.</p>
+                                )}
+                                {cameraError && (
+                                    <p style={{ color: '#FFB347' }}>⚠️ {cameraError}</p>
+                                )}
+                                {suggestions.map((s, i) => (
+                                    <p key={i} style={{ color: '#FFB347', fontSize: '0.85rem' }}>• {s}</p>
+                                ))}
+                                <p>{isScanning ? '🔄 Analyzing...' : scanStatus === 'success' ? '✓ Captured!' : 'Ready to Scan'}</p>
+                            </div>
+                        </div>
+
+                        <div className="scan-buttons" style={{ textAlign: 'center', marginTop: '20px' }}>
+                            {scanStatus !== 'success' ? (
+                                <button onClick={isScanning ? stopScanning : startScanning} className="scan-button">
+                                    {isScanning ? '⏸️ Stop' : '🔍 Start Scan'}
+                                </button>
+                            ) : (
+                                <>
+                                    <button onClick={handleNewScan} style={{ marginRight: '10px' }}>🔄 Reset</button>
+                                    <button onClick={handleContinueToResults} className="scan-button">✓ Results</button>
+                                </>
+                            )}
+                        </div>
+
+                        {scanStatus === 'success' && (
+                            <div className="results-preview-card" style={{ marginTop: '20px' }}>
+                                <textarea
+                                    readOnly
+                                    value={extractedText}
+                                    style={{ width: '100%', height: '150px', borderRadius: '10px', padding: '10px' }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ScanPage />);
+    </script>
+</body>
+
+</html>

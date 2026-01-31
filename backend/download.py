@@ -4,7 +4,6 @@ import pandas as pd
 import csv
 from fpdf import FPDF
 
-
 from text import extract_text_from_image
 
 user_choice = input("Enter format (docx, pptx, pdf, csv, html, txt, or xlsx): ").lower()
